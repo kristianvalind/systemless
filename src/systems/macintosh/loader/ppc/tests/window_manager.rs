@@ -6585,6 +6585,18 @@ fn window_property_title_picture_and_low_memory_commands_dispatch_with_canonical
             assert_eq!(probe.unsupported_import_index, None);
             assert_eq!(loaded.cpu.gpr[3], 0);
             assert_eq!(loaded.memory.read_u32_be(aw_out), Some(0));
+
+            // A NIL window also returns FALSE and writes awHndl.
+            loaded.memory.write_u32_be(aw_out, 0xFA4A_FFFF).unwrap();
+            loaded.cpu.pc = loaded.entry_pc;
+            loaded.cpu.lr = PPC_HALT_PC;
+            loaded.cpu.gpr[3] = 0;
+            loaded.cpu.gpr[4] = aw_out;
+            let probe = loaded.run_with_hle_imports(64);
+            assert_eq!(probe.handled_import_count, 1);
+            assert_eq!(probe.unsupported_import_index, None);
+            assert_eq!(loaded.cpu.gpr[3], 0);
+            assert_eq!(loaded.memory.read_u32_be(aw_out), Some(0));
         }
 
         // 5. LMGetWindowList & LMSetWindowList
