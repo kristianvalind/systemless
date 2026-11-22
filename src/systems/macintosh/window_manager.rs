@@ -1515,9 +1515,11 @@ pub fn evaluate_get_aux_win_parameters(
     out_aux_ctable_ptr: u32,
     can_write: bool,
 ) -> Result<GetAuxWinParameters, i16> {
-    if window_ptr == 0 {
-        return Err(-50);
-    }
+    // A NIL window has no auxiliary record of its own, so GetAuxWin still
+    // answers it: FALSE, with the out parameter written like any other
+    // window without one. Macintosh Toolbox Essentials (1992), p. 4-115.
+    // Mars Rising 1.0.2 PPC calls GetAuxWin(NIL, &awHndl) and dereferences
+    // a non-NIL awHndl, so leaving it unwritten exposed stack garbage.
     if out_aux_ctable_ptr != 0 && !can_write {
         return Err(-50);
     }
@@ -4645,7 +4647,9 @@ mod tests {
         assert_eq!(evaluate_set_port_window_port(0x1000), 0x1000);
 
         // AuxWin evaluation
-        assert_eq!(evaluate_get_aux_win_parameters(0, 0x4000, true), Err(-50));
+        let aux_nil_window = evaluate_get_aux_win_parameters(0, 0x4000, true).unwrap();
+        assert_eq!(aux_nil_window.window_ptr(), 0);
+        assert_eq!(aux_nil_window.out_aux_ctable_ptr(), 0x4000);
         assert_eq!(evaluate_get_aux_win_parameters(0x1000, 0x4000, false), Err(-50));
         let aux_params = evaluate_get_aux_win_parameters(0x1000, 0x4000, true).unwrap();
         assert_eq!(aux_params.window_ptr(), 0x1000);
